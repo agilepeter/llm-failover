@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-failover"
+version = "0.1.0"
+description = "Multi-provider LLM failover with rate-limit handling and automatic retry."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    {name = "Peter Saddington", email = "peter@staas.fund"},
+]
+keywords = ["llm", "failover", "fallback", "ai", "groq", "gemini", "cerebras"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Homepage = "https://github.com/agilepeter/llm-failover"
+Repository = "https://github.com/agilepeter/llm-failover"
+
+[project.optional-dependencies]
+groq = ["groq"]
+gemini = ["google-genai"]
+cerebras = ["cerebras-cloud-sdk"]
+all = ["groq", "google-genai", "cerebras-cloud-sdk", "requests"]
