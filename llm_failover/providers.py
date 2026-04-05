@@ -52,7 +52,7 @@ def gemini(api_key=None, model="gemini-2.0-flash", timeout=120_000):
     return _generate
 
 
-def cerebras(api_key=None, model="llama-3.3-70b", timeout=120):
+def cerebras(api_key=None, model="qwen-3-235b-a22b-instruct-2507", timeout=120):
     """Create a Cerebras provider function.
 
     Requires: pip install cerebras-cloud-sdk
@@ -111,6 +111,32 @@ def cloudflare(api_token=None, account_id=None,
         resp = requests.post(
             f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai/v1/chat/completions",
             headers={"Authorization": f"Bearer {token}"},
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    return _generate
+
+
+def openrouter(api_key=None, model="meta-llama/llama-3.3-70b-instruct", timeout=120):
+    """Create an OpenRouter provider function.
+
+    Uses the OpenRouter REST API. No extra SDK needed.
+    Free and paid models available at https://openrouter.ai/models
+    """
+    import requests
+    key = api_key or os.getenv("OPENROUTER_API_KEY")
+
+    def _generate(prompt, max_tokens=4096):
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}"},
             json={
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],

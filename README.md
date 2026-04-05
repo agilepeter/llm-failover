@@ -2,16 +2,19 @@
 
 Multi-provider LLM fallback with rate-limit handling and automatic retry. Zero vendor lock-in.
 
-Born from running 4 AI agents daily across 5 LLM providers in production at [StaaS Fund](https://staas.fund). When one provider goes down or hits a rate limit, the next one picks up seamlessly.
+Born from running 4 AI agents daily across 6 LLM providers in production at [StaaS Fund](https://staas.fund). When one provider goes down or hits a rate limit, the next one picks up seamlessly.
 
 ## Features
 
 - **Automatic failover** — tries providers in order, moves to the next on failure
 - **Rate-limit detection** — catches 429 errors and retries with exponential backoff
 - **Daily quota tracking** — when a provider hits its daily cap, it's skipped for the rest of the session
+- **Round-robin rotation** — spreads calls across providers evenly instead of always hitting the first one
+- **Per-provider budgets** — voluntarily rotate before hitting rate limits (e.g., limit Groq to 8 calls per session)
 - **Named chains** — define "fast", "reliable", "morning" chains with different provider orders
+- **Blackout callback** — hook into total failure events (e.g., alert Discord, PagerDuty)
 - **Bring your own providers** — any `(prompt, max_tokens) -> str` function works
-- **Built-in helpers** — pre-built functions for Groq, Gemini, Cerebras, SambaNova, Cloudflare Workers AI
+- **Built-in helpers** — pre-built functions for Groq, Gemini, Cerebras, SambaNova, Cloudflare Workers AI, OpenRouter
 - **Zero required dependencies** — core library is pure Python. Provider SDKs are optional.
 
 ## Install
@@ -75,7 +78,7 @@ failover = LLMFailover(
         ("Cerebras", cerebras()),
     ],
     chains={
-        "fast": ["Cerebras", "Groq"],       # speed priority
+        "fast": ["Cerebras", "Groq"],        # speed priority
         "reliable": ["Gemini", "Groq"],       # quality priority
         "default": ["Groq", "Gemini", "Cerebras"],
     },
@@ -84,6 +87,49 @@ failover = LLMFailover(
 # Use a specific chain
 result = failover.generate("Quick math: 2+2?", chain="fast")
 ```
+
+## Per-Provider Budgets
+
+Voluntarily rotate providers before hitting rate limits. After exhausting a provider's budget, the failover engine skips to the next one. Over-budget providers are retried as a last resort before total failure.
+
+```python
+failover = LLMFailover(
+    providers=[
+        ("Groq", groq()),
+        ("Gemini", gemini()),
+        ("Cerebras", cerebras()),
+        ("OpenRouter", openrouter()),
+    ],
+    budgets={
+        "Groq": 8,         # Conservative — daily token cap is the real constraint
+        "Gemini": 30,       # Flash free tier has the most headroom
+        "Cerebras": 12,     # Free tier bursts at ~10 RPM
+        "OpenRouter": 50,   # Paid final boss — only hit if everything else is down
+    },
+)
+```
+
+Calls are round-robin rotated across the chain automatically, so load spreads evenly even without budgets.
+
+## Blackout Callback
+
+Get notified when all providers fail:
+
+```python
+import requests
+
+def alert_discord(chain, exhausted):
+    requests.post(WEBHOOK_URL, json={
+        "content": f"LLM blackout — all providers failed (chain={chain}, exhausted: {exhausted})"
+    })
+
+failover = LLMFailover(
+    providers=[("Groq", groq()), ("Gemini", gemini())],
+    on_blackout=alert_discord,
+)
+```
+
+The callback fires once per session (not on every failed call). Call `failover.reset()` to re-arm it.
 
 ## Built-in Providers
 
@@ -94,6 +140,7 @@ result = failover.generate("Quick math: 2+2?", chain="fast")
 | Cerebras | `providers.cerebras()` | `pip install cerebras-cloud-sdk` | `CEREBRAS_API_KEY` |
 | SambaNova | `providers.sambanova()` | None (REST) | `SAMBANOVA_API_KEY` |
 | Cloudflare Workers AI | `providers.cloudflare()` | None (REST) | `CF_AI_API_TOKEN` + `CF_ACCOUNT_ID` |
+| OpenRouter | `providers.openrouter()` | None (REST) | `OPENROUTER_API_KEY` |
 | Any OpenAI-compatible | `providers.openai_compatible(base_url)` | None (REST) | `OPENAI_API_KEY` |
 
 All helpers accept optional `api_key` and `model` overrides:
@@ -106,13 +153,15 @@ custom_groq = groq(api_key="sk-...", model="llama-3.1-8b-instant")
 
 ## How It Works
 
-1. Try the first provider in the chain
-2. If it fails with a rate-limit error (429), retry with exponential backoff
-3. If it hits a daily quota, mark it as exhausted and skip it for the session
-4. If it fails for any other reason, move to the next provider
-5. If all providers fail, raise `RuntimeError`
+1. Round-robin rotate the chain so calls spread across providers
+2. Try the next provider in the rotated chain (skip if over budget)
+3. If it fails with a rate-limit error (429), retry with exponential backoff
+4. If it hits a daily quota, mark it as exhausted and skip it for the session
+5. If it fails for any other reason, move to the next provider
+6. If all in-budget providers fail, retry over-budget providers as a last resort
+7. If everything fails, fire the blackout callback and raise `RuntimeError`
 
-Call `failover.reset()` to clear exhausted providers (e.g., at the start of a new day).
+Call `failover.reset()` to clear exhausted providers, call counts, and the blackout flag (e.g., at the start of a new day).
 
 ## Logging
 
