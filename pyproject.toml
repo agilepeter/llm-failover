@@ -12,7 +12,7 @@ requires-python = ">=3.9"
 authors = [
     {name = "Peter Saddington", email = "peter@staas.fund"},
 ]
-keywords = ["llm", "failover", "fallback", "ai", "groq", "gemini", "cerebras"]
+keywords = ["llm", "failover", "fallback", "ai", "groq", "gemini"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -27,5 +27,4 @@ Repository = "https://github.com/agilepeter/llm-failover"
 [project.optional-dependencies]
 groq = ["groq"]
 gemini = ["google-genai"]
-cerebras = ["cerebras-cloud-sdk"]
-all = ["groq", "google-genai", "cerebras-cloud-sdk", "requests"]
+all = ["groq", "google-genai", "requests"]

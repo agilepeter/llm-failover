@@ -52,26 +52,6 @@ def gemini(api_key=None, model="gemini-2.0-flash", timeout=120_000):
     return _generate
 
 
-def cerebras(api_key=None, model="qwen-3-235b-a22b-instruct-2507", timeout=120):
-    """Create a Cerebras provider function.
-
-    Requires: pip install cerebras-cloud-sdk
-    """
-    key = api_key or os.getenv("CEREBRAS_API_KEY")
-
-    def _generate(prompt, max_tokens=4096):
-        from cerebras.cloud.sdk import Cerebras
-        client = Cerebras(api_key=key, timeout=timeout)
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-        )
-        return response.choices[0].message.content
-
-    return _generate
-
-
 def sambanova(api_key=None, model="Meta-Llama-3.3-70B-Instruct", timeout=120):
     """Create a SambaNova provider function.
 

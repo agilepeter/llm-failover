@@ -2,7 +2,7 @@
 
 Multi-provider LLM fallback with rate-limit handling and automatic retry. Zero vendor lock-in.
 
-Born from running 4 AI agents daily across 6 LLM providers in production at [StaaS Fund](https://staas.fund). When one provider goes down or hits a rate limit, the next one picks up seamlessly.
+Born from running 4 AI agents daily across 5 LLM providers in production at [StaaS Fund](https://staas.fund). When one provider goes down or hits a rate limit, the next one picks up seamlessly.
 
 ## Features
 
@@ -14,7 +14,7 @@ Born from running 4 AI agents daily across 6 LLM providers in production at [Sta
 - **Named chains** — define "fast", "reliable", "morning" chains with different provider orders
 - **Blackout callback** — hook into total failure events (e.g., alert Discord, PagerDuty)
 - **Bring your own providers** — any `(prompt, max_tokens) -> str` function works
-- **Built-in helpers** — pre-built functions for Groq, Gemini, Cerebras, SambaNova, Cloudflare Workers AI, OpenRouter
+- **Built-in helpers** — pre-built functions for Groq, Gemini, SambaNova, Cloudflare Workers AI, OpenRouter
 - **Zero required dependencies** — core library is pure Python. Provider SDKs are optional.
 
 ## Install
@@ -75,12 +75,12 @@ failover = LLMFailover(
     providers=[
         ("Groq", groq()),
         ("Gemini", gemini()),
-        ("Cerebras", cerebras()),
+        ("SambaNova", sambanova()),
     ],
     chains={
-        "fast": ["Cerebras", "Groq"],        # speed priority
-        "reliable": ["Gemini", "Groq"],       # quality priority
-        "default": ["Groq", "Gemini", "Cerebras"],
+        "fast": ["Groq", "Gemini"],             # speed priority
+        "reliable": ["Gemini", "Groq"],         # quality priority
+        "default": ["Groq", "Gemini", "SambaNova"],
     },
 )
 
@@ -97,13 +97,13 @@ failover = LLMFailover(
     providers=[
         ("Groq", groq()),
         ("Gemini", gemini()),
-        ("Cerebras", cerebras()),
+        ("SambaNova", sambanova()),
         ("OpenRouter", openrouter()),
     ],
     budgets={
         "Groq": 8,         # Conservative — daily token cap is the real constraint
         "Gemini": 30,       # Flash free tier has the most headroom
-        "Cerebras": 12,     # Free tier bursts at ~10 RPM
+        "SambaNova": 6,     # Unreliable 500s — use sparingly
         "OpenRouter": 50,   # Paid final boss — only hit if everything else is down
     },
 )
@@ -137,7 +137,6 @@ The callback fires once per session (not on every failed call). Call `failover.r
 |----------|--------|-----|---------|
 | Groq | `providers.groq()` | `pip install groq` | `GROQ_API_KEY` |
 | Google Gemini | `providers.gemini()` | `pip install google-genai` | `GEMINI_API_KEY` |
-| Cerebras | `providers.cerebras()` | `pip install cerebras-cloud-sdk` | `CEREBRAS_API_KEY` |
 | SambaNova | `providers.sambanova()` | None (REST) | `SAMBANOVA_API_KEY` |
 | Cloudflare Workers AI | `providers.cloudflare()` | None (REST) | `CF_AI_API_TOKEN` + `CF_ACCOUNT_ID` |
 | OpenRouter | `providers.openrouter()` | None (REST) | `OPENROUTER_API_KEY` |
