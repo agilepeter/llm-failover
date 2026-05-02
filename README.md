@@ -174,3 +174,7 @@ logging.basicConfig(level=logging.INFO)
 ## License
 
 MIT
+
+---
+
+_Last verified by CI: 2026-05-02_
