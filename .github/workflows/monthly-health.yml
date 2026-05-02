@@ -1,0 +1,54 @@
+name: Monthly Health Check
+
+on:
+  schedule:
+    - cron: '0 12 1 * *'  # 1st of month, 12:00 UTC (8:00 AM EDT)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Import smoke test
+        run: |
+          python -c "
+          from llm_failover import FailoverChain
+          import llm_failover
+          print('Package version:', getattr(llm_failover, '__version__', 'unspecified'))
+          print('Public API:', sorted(x for x in dir(llm_failover) if not x.startswith('_')))
+          print('Smoke test passed.')
+          "
+
+      - name: Update last-verified date in README
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          if grep -q "^_Last verified by CI:" README.md; then
+            sed -i "s|^_Last verified by CI:.*|_Last verified by CI: $DATE_|" README.md
+          else
+            printf "\n---\n\n_Last verified by CI: %s_\n" "$DATE" >> README.md
+          fi
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          if ! git diff --staged --quiet; then
+            git commit -m "ci: monthly health check $(date -u +%Y-%m)"
+            git push
+          else
+            echo "README already up-to-date"
+          fi
