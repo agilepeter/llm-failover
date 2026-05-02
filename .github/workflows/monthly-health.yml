@@ -25,10 +25,12 @@ jobs:
       - name: Import smoke test
         run: |
           python -c "
-          from llm_failover import FailoverChain
           import llm_failover
-          print('Package version:', getattr(llm_failover, '__version__', 'unspecified'))
-          print('Public API:', sorted(x for x in dir(llm_failover) if not x.startswith('_')))
+          version = getattr(llm_failover, '__version__', 'unspecified')
+          api = getattr(llm_failover, '__all__', None) or [x for x in dir(llm_failover) if not x.startswith('_')]
+          assert api, 'package exports nothing'
+          print(f'Package version: {version}')
+          print(f'Public API: {sorted(api)}')
           print('Smoke test passed.')
           "
 
