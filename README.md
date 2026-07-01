@@ -14,7 +14,7 @@ Born from running 4 AI agents daily across 5 LLM providers in production at [Sta
 - **Named chains** — define "fast", "reliable", "morning" chains with different provider orders
 - **Blackout callback** — hook into total failure events (e.g., alert Discord, PagerDuty)
 - **Bring your own providers** — any `(prompt, max_tokens) -> str` function works
-- **Built-in helpers** — pre-built functions for Groq, Gemini, SambaNova, Cloudflare Workers AI, OpenRouter
+- **Built-in helpers** — pre-built functions for Groq, Gemini, Anthropic (Claude), Mistral, NVIDIA NIM, GitHub Models, SambaNova, Cloudflare Workers AI, OpenRouter
 - **Zero required dependencies** — core library is pure Python. Provider SDKs are optional.
 
 ## Install
@@ -137,6 +137,10 @@ The callback fires once per session (not on every failed call). Call `failover.r
 |----------|--------|-----|---------|
 | Groq | `providers.groq()` | `pip install groq` | `GROQ_API_KEY` |
 | Google Gemini | `providers.gemini()` | `pip install google-genai` | `GEMINI_API_KEY` |
+| Anthropic (Claude) | `providers.anthropic()` | `pip install anthropic` | `ANTHROPIC_API_KEY` |
+| Mistral | `providers.mistral()` | None (REST) | `MISTRAL_API_KEY` |
+| NVIDIA NIM | `providers.nvidia()` | None (REST) | `NVIDIA_API_KEY` |
+| GitHub Models | `providers.github_models()` | None (REST) | `GITHUB_TOKEN` |
 | SambaNova | `providers.sambanova()` | None (REST) | `SAMBANOVA_API_KEY` |
 | Cloudflare Workers AI | `providers.cloudflare()` | None (REST) | `CF_AI_API_TOKEN` + `CF_ACCOUNT_ID` |
 | OpenRouter | `providers.openrouter()` | None (REST) | `OPENROUTER_API_KEY` |

@@ -30,7 +30,28 @@ def groq(api_key=None, model="llama-3.3-70b-versatile", timeout=120):
     return _generate
 
 
-def gemini(api_key=None, model="gemini-2.0-flash", timeout=120_000):
+def anthropic(api_key=None, model="claude-haiku-4-5", timeout=120):
+    """Create an Anthropic Claude provider function.
+
+    Requires: pip install anthropic
+    """
+    key = api_key or os.getenv("ANTHROPIC_API_KEY")
+
+    def _generate(prompt, max_tokens=4096):
+        from anthropic import Anthropic
+        client = Anthropic(api_key=key, timeout=timeout)
+        response = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        # content is a list of blocks; return the first text block
+        return next((b.text for b in response.content if b.type == "text"), "")
+
+    return _generate
+
+
+def gemini(api_key=None, model="gemini-2.5-flash", timeout=120_000):
     """Create a Google Gemini provider function.
 
     Requires: pip install google-genai
@@ -116,6 +137,88 @@ def openrouter(api_key=None, model="meta-llama/llama-3.3-70b-instruct", timeout=
     def _generate(prompt, max_tokens=4096):
         resp = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}"},
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    return _generate
+
+
+def github_models(api_key=None, model="openai/gpt-4o-mini", timeout=120):
+    """Create a GitHub Models provider function.
+
+    Uses the OpenAI-compatible REST API. No extra SDK needed.
+    Free tier — authenticate with a GitHub token that has the `models:read`
+    scope (e.g. from `gh auth token` or a PAT).
+    Model catalog at https://github.com/marketplace/models
+    """
+    import requests
+    key = api_key or os.getenv("GITHUB_TOKEN")
+
+    def _generate(prompt, max_tokens=4096):
+        resp = requests.post(
+            "https://models.github.ai/inference/chat/completions",
+            headers={"Authorization": f"Bearer {key}"},
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    return _generate
+
+
+def nvidia(api_key=None, model="meta/llama-3.1-8b-instruct", timeout=120):
+    """Create an NVIDIA NIM provider function.
+
+    Uses the OpenAI-compatible REST API. No extra SDK needed.
+    Free tier + model catalog at https://build.nvidia.com
+    Defaults to the 8B model — it stays warm and responds in <1s. Larger
+    models (e.g. meta/llama-3.3-70b-instruct) can cold-start past the timeout.
+    """
+    import requests
+    key = api_key or os.getenv("NVIDIA_API_KEY")
+
+    def _generate(prompt, max_tokens=4096):
+        resp = requests.post(
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}"},
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    return _generate
+
+
+def mistral(api_key=None, model="mistral-small-latest", timeout=120):
+    """Create a Mistral (La Plateforme) provider function.
+
+    Uses the OpenAI-compatible REST API. No extra SDK needed.
+    Free experimental tier available at https://console.mistral.ai
+    """
+    import requests
+    key = api_key or os.getenv("MISTRAL_API_KEY")
+
+    def _generate(prompt, max_tokens=4096):
+        resp = requests.post(
+            "https://api.mistral.ai/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}"},
             json={
                 "model": model,

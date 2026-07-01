@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llm-failover"
-version = "0.2.0"
+version = "0.3.0"
 description = "Multi-provider LLM failover with rate-limit handling and automatic retry."
 readme = "README.md"
 license = "MIT"
@@ -12,7 +12,7 @@ requires-python = ">=3.9"
 authors = [
     {name = "Peter Saddington", email = "peter@staas.fund"},
 ]
-keywords = ["llm", "failover", "fallback", "ai", "groq", "gemini"]
+keywords = ["llm", "failover", "fallback", "ai", "groq", "gemini", "anthropic", "claude", "mistral", "nvidia", "github-models"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -27,4 +27,5 @@ Repository = "https://github.com/agilepeter/llm-failover"
 [project.optional-dependencies]
 groq = ["groq"]
 gemini = ["google-genai"]
-all = ["groq", "google-genai", "requests"]
+anthropic = ["anthropic"]
+all = ["groq", "google-genai", "anthropic", "requests"]
