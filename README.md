@@ -144,6 +144,7 @@ The callback fires once per session (not on every failed call). Call `failover.r
 | SambaNova | `providers.sambanova()` | None (REST) | `SAMBANOVA_API_KEY` |
 | Cloudflare Workers AI | `providers.cloudflare()` | None (REST) | `CF_AI_API_TOKEN` + `CF_ACCOUNT_ID` |
 | OpenRouter | `providers.openrouter()` | None (REST) | `OPENROUTER_API_KEY` |
+| z.ai (Zhipu GLM) | `providers.zai()` | None (REST) | `ZAI_API_KEY` |
 | Any OpenAI-compatible | `providers.openai_compatible(base_url)` | None (REST) | `OPENAI_API_KEY` |
 
 All helpers accept optional `api_key` and `model` overrides:

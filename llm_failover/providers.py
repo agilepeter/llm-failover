@@ -233,6 +233,34 @@ def mistral(api_key=None, model="mistral-small-latest", timeout=120):
     return _generate
 
 
+def zai(api_key=None, model="glm-4.6", timeout=120):
+    """Create a z.ai (Zhipu GLM) provider function.
+
+    Uses the OpenAI-compatible REST API. No extra SDK needed.
+    Models: glm-4.6 (flagship coder), glm-4.5-air (cheaper), glm-4-flash (free tier).
+    Also exposes an Anthropic-compatible endpoint at /api/anthropic if you prefer
+    the Messages wire format. Docs: https://docs.z.ai
+    """
+    import requests
+    key = api_key or os.getenv("ZAI_API_KEY")
+
+    def _generate(prompt, max_tokens=4096):
+        resp = requests.post(
+            "https://api.z.ai/api/paas/v4/chat/completions",
+            headers={"Authorization": f"Bearer {key}"},
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            },
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+
+    return _generate
+
+
 def openai_compatible(base_url, api_key=None, model="gpt-4o-mini", timeout=120):
     """Create a provider for any OpenAI-compatible API (OpenAI, Together, Anyscale, etc.).
 
