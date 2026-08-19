@@ -10,8 +10,14 @@ first called, so you won't get import errors for providers you don't use.
 import os
 
 
-def groq(api_key=None, model="llama-3.3-70b-versatile", timeout=120):
+def groq(api_key=None, model="openai/gpt-oss-120b", timeout=120):
     """Create a Groq provider function.
+
+    NOTE (2026-08-19): the previous default `llama-3.3-70b-versatile` was DECOMMISSIONED
+    by Groq — accounts now serve no Llama chat model (only prompt-guard). Default is now
+    `openai/gpt-oss-120b`, verified serving. That is a REASONING model: give it a real
+    max_tokens (it spends budget reasoning first, and returns EMPTY content on tiny
+    requests). Check https://api.groq.com/openai/v1/models before pinning a model.
 
     Requires: pip install groq
     """
@@ -153,6 +159,10 @@ def openrouter(api_key=None, model="meta-llama/llama-3.3-70b-instruct", timeout=
 
 def github_models(api_key=None, model="openai/gpt-4o-mini", timeout=120):
     """Create a GitHub Models provider function.
+
+    ⚠️ RETIRED BY GITHUB (observed 2026-08-19). The endpoint returns HTTP 410 with
+    {"code": "github_models_retirement_brownout"} — a scheduled pre-retirement brownout,
+    not a transient outage. Kept for reference/compatibility; do NOT put it in a chain.
 
     Uses the OpenAI-compatible REST API. No extra SDK needed.
     Free tier — authenticate with a GitHub token that has the `models:read`
