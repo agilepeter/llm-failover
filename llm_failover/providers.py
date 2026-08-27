@@ -189,7 +189,7 @@ def github_models(api_key=None, model="openai/gpt-4o-mini", timeout=120):
     return _generate
 
 
-def nvidia(api_key=None, model="meta/llama-3.1-8b-instruct", timeout=120):
+def nvidia(api_key=None, model="meta/llama-3.2-90b-vision-instruct", timeout=120):
     """Create an NVIDIA NIM provider function.
 
     Uses the OpenAI-compatible REST API. No extra SDK needed.
