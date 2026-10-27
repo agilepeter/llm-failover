@@ -8,7 +8,7 @@ import re
 import time
 import logging
 
-logger = logging.getLogger("llm_failover")
+logger = logging.getLogger("llm_failover_chain")
 
 
 def _is_rate_limited(error):

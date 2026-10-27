@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import llm_failover.core as core  # noqa: E402
-from llm_failover import LLMFailover  # noqa: E402
+import llm_failover_chain.core as core  # noqa: E402
+from llm_failover_chain import LLMFailover  # noqa: E402
 
 GEMINI_402 = ("402 RESOURCE_EXHAUSTED. {'error': {'code': 402, 'message': 'Your prepayment credits "
               "are depleted.', 'status': 'RESOURCE_EXHAUSTED'}}")
@@ -109,3 +109,10 @@ def test_with_no_usable_answer_anywhere_it_raises_and_fires_the_blackout_once():
 ])
 def test_payment_failures_are_told_apart_from_rate_limits(err, expected):
     assert core._is_payment_failure(Exception(err)) is expected
+
+
+def test_the_package_no_longer_takes_the_llm_failover_import_name():
+    # A different PyPI project installs as llm_failover; sharing it meant the two could not be
+    # installed together (0.6.0 renamed the import to llm_failover_chain).
+    assert not (ROOT / "llm_failover").exists()
+    assert core.logger.name == "llm_failover_chain"

@@ -38,15 +38,17 @@ Pin a release by adding its tag, e.g. `git+https://github.com/agilepeter/llm-fai
 
 > **Don't `pip install llm-failover`.** That name on PyPI belongs to a different project, and so
 > does an upgrade by that name. This package installs as **`llm-failover-chain`** and imports as
-> `llm_failover`. The other project also imports as `llm_failover`, so don't install both.
-> Installed this package before 0.5.0, when it was still called `llm-failover`? Run
-> `pip uninstall llm-failover` first, then install as above.
+> **`llm_failover_chain`**.
+>
+> **Upgrading from 0.5.0 or earlier:** the import name changed in 0.6.0. Replace `llm_failover`
+> with `llm_failover_chain` in your imports (and in any logging config). Installed before 0.5.0,
+> when the package was called `llm-failover`? Run `pip uninstall llm-failover` first.
 
 ## Quick Start
 
 ```python
-from llm_failover import LLMFailover
-from llm_failover.providers import groq, gemini
+from llm_failover_chain import LLMFailover
+from llm_failover_chain.providers import groq, gemini
 
 # Set GROQ_API_KEY and GEMINI_API_KEY as env vars, or pass directly
 failover = LLMFailover([
@@ -183,7 +185,7 @@ The callback fires once per session (not on every failed call). Call `failover.r
 All helpers accept optional `api_key` and `model` overrides:
 
 ```python
-from llm_failover.providers import groq
+from llm_failover_chain.providers import groq
 
 custom_groq = groq(api_key="sk-...", model="llama-3.1-8b-instant")
 ```
@@ -203,7 +205,7 @@ Call `failover.reset()` to clear exhausted providers, call counts, and the black
 
 ## Logging
 
-Uses Python's standard `logging` module under the `llm_failover` logger:
+Uses Python's standard `logging` module under the `llm_failover_chain` logger:
 
 ```python
 import logging

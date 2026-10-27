@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llm-failover-chain"
-version = "0.5.0"
+version = "0.6.0"
 description = "Multi-provider LLM failover with rate-limit handling and automatic retry."
 readme = "README.md"
 license = "MIT"

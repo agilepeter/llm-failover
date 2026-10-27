@@ -3,11 +3,13 @@
 Set your API keys as environment variables before running:
     export GROQ_API_KEY=your-key
     export GEMINI_API_KEY=your-key
+    export MISTRAL_API_KEY=your-key      # Option 2
+    export OPENROUTER_API_KEY=your-key   # Option 2
 """
 
 import logging
-from llm_failover import LLMFailover
-from llm_failover.providers import groq, gemini, cerebras, openrouter
+from llm_failover_chain import LLMFailover
+from llm_failover_chain.providers import groq, gemini, mistral, openrouter
 
 # Enable logging to see failover in action
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -31,19 +33,19 @@ def on_blackout(chain, exhausted):
 failover2 = LLMFailover(
     providers=[
         ("Gemini", gemini()),
-        ("Cerebras", cerebras()),
+        ("Mistral", mistral()),
         ("Groq", groq()),
         ("OpenRouter", openrouter()),
     ],
     chains={
-        "morning": ["Gemini", "Cerebras", "Groq", "OpenRouter"],
-        "fast": ["Cerebras", "Gemini", "Groq", "OpenRouter"],
-        "default": ["Groq", "Gemini", "Cerebras", "OpenRouter"],
+        "morning": ["Gemini", "Mistral", "Groq", "OpenRouter"],
+        "fast": ["Mistral", "Gemini", "Groq", "OpenRouter"],
+        "default": ["Groq", "Gemini", "Mistral", "OpenRouter"],
     },
     budgets={
         "Groq": 8,
         "Gemini": 30,
-        "Cerebras": 12,
+        "Mistral": 12,
         "OpenRouter": 50,
     },
     on_blackout=on_blackout,
