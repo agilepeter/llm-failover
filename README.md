@@ -22,6 +22,8 @@ Born from running 4 AI agents daily across 5 LLM providers in production at [Sta
 
 ## Install
 
+Not on PyPI. Install from GitHub:
+
 ```bash
 pip install git+https://github.com/agilepeter/llm-failover.git
 ```
@@ -29,8 +31,16 @@ pip install git+https://github.com/agilepeter/llm-failover.git
 With built-in provider helpers:
 
 ```bash
-pip install "git+https://github.com/agilepeter/llm-failover.git#egg=llm-failover[groq,gemini]"
+pip install "llm-failover-chain[groq,gemini] @ git+https://github.com/agilepeter/llm-failover.git"
 ```
+
+Pin a release by adding its tag, e.g. `git+https://github.com/agilepeter/llm-failover.git@v0.5.0`.
+
+> **Don't `pip install llm-failover`.** That name on PyPI belongs to a different project, and so
+> does an upgrade by that name. This package installs as **`llm-failover-chain`** and imports as
+> `llm_failover`. The other project also imports as `llm_failover`, so don't install both.
+> Installed this package before 0.5.0, when it was still called `llm-failover`? Run
+> `pip uninstall llm-failover` first, then install as above.
 
 ## Quick Start
 
