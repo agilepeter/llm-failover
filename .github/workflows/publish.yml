@@ -1,6 +1,9 @@
 name: Publish to PyPI
 
-# Manual only. Run it ON A RELEASE TAG:   gh workflow run publish.yml --ref v0.6.0
+# Runs by itself when a GitHub release is published, so releasing is: bump the version in
+# pyproject.toml and llm_failover_chain/__init__.py, commit, push, then
+#   gh release create vX.Y.Z --target main --title ... --notes ...
+# It can also be run by hand on a release tag:   gh workflow run publish.yml --ref vX.Y.Z
 # Uses PyPI Trusted Publishing (OIDC), so no token is stored anywhere. PyPI trusts this exact
 # repository + workflow + environment, configured once by the account owner as a publisher for
 # project llm-failover-chain: owner agilepeter, repository llm-failover, workflow publish.yml,
@@ -8,6 +11,8 @@ name: Publish to PyPI
 # The build job refuses anything that is not the tag matching the version in pyproject.toml.
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       publish:
@@ -63,5 +68,7 @@ jobs:
       - name: What would be uploaded
         run: ls -l dist/
       - name: Upload to PyPI
-        if: ${{ inputs.publish }}
+        # A release event has no inputs, so it must be allowed by name: `inputs.publish`
+        # alone would be empty there and the upload would silently skip.
+        if: ${{ github.event_name == 'release' || inputs.publish }}
         uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3
