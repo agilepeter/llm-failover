@@ -9,6 +9,9 @@ Born from running 4 AI agents daily across 5 LLM providers in production at [Sta
 - **Automatic failover** — tries providers in order, moves to the next on failure
 - **Rate-limit detection** — catches 429 errors and retries with exponential backoff
 - **Daily quota tracking** — when a provider hits its daily cap, it's skipped for the rest of the session
+- **Payment failures** — a 402 (credits spent or lapsed) is never retried; the provider is skipped for the session
+- **Empty answers fail over** — a provider that answers with nothing (reasoning models can) moves on to the next one instead of returning `""`
+- **Answer validation** — pass `accept=` to fail over on answers you can't use, not just on errors
 - **Round-robin rotation** — spreads calls across providers evenly instead of always hitting the first one
 - **Per-provider budgets** — voluntarily rotate before hitting rate limits (e.g., limit Groq to 8 calls per session)
 - **Named chains** — define "fast", "reliable", "morning" chains with different provider orders
@@ -111,6 +114,26 @@ failover = LLMFailover(
 
 Calls are round-robin rotated across the chain automatically, so load spreads evenly even without budgets.
 
+## Validating Answers
+
+An error isn't the only way a provider can fail you: it can answer with something you can't use.
+Pass `accept` (a function from the answer text to `True`/`False`) and a rejected answer fails over
+to the next provider exactly like an error does. Empty answers always fail over.
+
+```python
+import json
+
+def is_json_list(text):
+    try:
+        return isinstance(json.loads(text), list)
+    except ValueError:
+        return False
+
+ideas = failover.generate("Three product names as a JSON list of strings", accept=is_json_list)
+```
+
+`accept` should not raise; an exception from it propagates to the caller.
+
 ## Blackout Callback
 
 Get notified when all providers fail:
@@ -159,11 +182,12 @@ custom_groq = groq(api_key="sk-...", model="llama-3.1-8b-instant")
 
 1. Round-robin rotate the chain so calls spread across providers
 2. Try the next provider in the rotated chain (skip if over budget)
-3. If it fails with a rate-limit error (429), retry with exponential backoff
+3. If it fails with a rate-limit error (429), retry with exponential backoff; if it fails with a payment error (402), skip it for the session without retrying
 4. If it hits a daily quota, mark it as exhausted and skip it for the session
 5. If it fails for any other reason, move to the next provider
-6. If all in-budget providers fail, retry over-budget providers as a last resort
-7. If everything fails, fire the blackout callback and raise `RuntimeError`
+6. An empty answer, or one `accept` rejects, counts as a failure and moves on to the next provider
+7. If all in-budget providers fail, retry over-budget providers as a last resort
+8. If everything fails, fire the blackout callback and raise `RuntimeError`
 
 Call `failover.reset()` to clear exhausted providers, call counts, and the blackout flag (e.g., at the start of a new day).
 

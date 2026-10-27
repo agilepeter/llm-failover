@@ -4,6 +4,7 @@ Battle-tested in production running 4 AI agents daily across 6 LLM providers.
 Handles rate limits, daily quotas, provider budgets, and outages automatically.
 """
 
+import re
 import time
 import logging
 
@@ -14,6 +15,17 @@ def _is_rate_limited(error):
     """Check if an error is a rate limit (429) error."""
     s = str(error)
     return "429" in s or "RESOURCE_EXHAUSTED" in s or "rate_limit" in s
+
+
+def _is_payment_failure(error):
+    """Check if an error is a 402: the provider wants payment (credits spent or lapsed).
+
+    Checked before _is_rate_limited, because Gemini's 402 ("Your prepayment credits are
+    depleted") says RESOURCE_EXHAUSTED, the same words as its 429. Retrying a payment
+    failure cannot succeed within a session, so the provider is skipped for the rest of it.
+    """
+    s = str(error)
+    return bool(re.search(r"\b402\b", s)) or "payment required" in s.lower() or "credits are depleted" in s.lower()
 
 
 def _is_daily_limit(error):
@@ -35,7 +47,8 @@ class LLMFailover:
         budgets: Optional per-provider call budgets. Dict of {provider_name: max_calls}.
             After hitting the budget, the provider is skipped in favor of the next one.
             Over-budget providers are retried as a last resort before total failure.
-        retries: Number of retries per provider on rate-limit errors. Default 2.
+        retries: Number of retries per provider on rate-limit (429) errors. Default 2.
+            A payment failure (402) is never retried: the provider is skipped for the session.
         backoff_base: Base seconds for exponential backoff. Default 8.
         on_blackout: Optional callback invoked when all providers fail.
             Called with (chain_name, exhausted_set) before RuntimeError is raised.
@@ -81,21 +94,26 @@ class LLMFailover:
         self._on_blackout = on_blackout
         self._blackout_fired = False
 
-    def generate(self, prompt, chain="default", max_tokens=4096):
+    def generate(self, prompt, chain="default", max_tokens=4096, accept=None):
         """Generate text using the specified fallback chain.
 
         Tries each provider in round-robin order. On rate-limit errors, retries
         with exponential backoff. On daily quota errors, marks the provider as
-        exhausted for the rest of the session. Providers over their call budget
-        are skipped initially but retried as a last resort.
+        exhausted for the rest of the session, as on a payment failure (402). An empty
+        answer fails over to the next provider instead of being returned, and so does any
+        answer that `accept` rejects. Providers over their call budget are skipped initially
+        but retried as a last resort.
 
         Args:
             prompt: The prompt text.
             chain: Chain name (default: "default"). Must match a key in chains.
             max_tokens: Maximum tokens for the response.
+            accept: Optional check, accept(text) -> bool, for an answer you can use (e.g.
+                "parses as JSON"). An answer it rejects fails over to the next provider,
+                like an error. It should not raise; an exception from it propagates.
 
         Returns:
-            Generated text string from the first successful provider.
+            Generated text string from the first provider with a usable answer.
 
         Raises:
             RuntimeError: If all providers in the chain fail.
@@ -116,7 +134,7 @@ class LLMFailover:
             if not self._budget_available(name):
                 continue
 
-            result = self._try_provider(name, fn, prompt, max_tokens)
+            result = self._try_provider(name, fn, prompt, max_tokens, accept)
             if result is not None:
                 self._round_robin_index += 1
                 return result
@@ -129,7 +147,7 @@ class LLMFailover:
             if self._budget_available(name):
                 continue  # already tried above
             logger.info("Trying %s (over budget, last resort)", name)
-            result = self._try_provider(name, fn, prompt, max_tokens)
+            result = self._try_provider(name, fn, prompt, max_tokens, accept)
             if result is not None:
                 self._round_robin_index += 1
                 return result
@@ -156,11 +174,17 @@ class LLMFailover:
         return self._call_counts.get(name, 0) < budget
 
     def _record_call(self, name):
-        """Record a successful call against a provider's budget."""
+        """Record a successful (usable) call against a provider's budget."""
         self._call_counts[name] = self._call_counts.get(name, 0) + 1
 
-    def _try_provider(self, name, fn, prompt, max_tokens):
-        """Try a single provider with retry logic."""
+    def _try_provider(self, name, fn, prompt, max_tokens, accept=None):
+        """Try a single provider with retry logic.
+
+        Returns None (so the chain moves on) on failure, on an empty answer, and on an
+        answer `accept` rejects. An empty answer used to be returned as success, ending the
+        chain while untried providers remained (reasoning models such as gpt-oss on Groq
+        return one when the token budget goes to reasoning).
+        """
         if name in self._exhausted:
             logger.debug("Skipping exhausted provider: %s", name)
             return None
@@ -170,9 +194,11 @@ class LLMFailover:
         for attempt in range(self._retries + 1):
             try:
                 result = fn(prompt, max_tokens)
-                self._record_call(name)
-                return result
             except Exception as e:
+                if _is_payment_failure(e):
+                    logger.warning("%s needs payment (402) — skipping for rest of session: %s", name, e)
+                    self._exhausted.add(name)
+                    return None
                 if _is_rate_limited(e):
                     if _is_daily_limit(e):
                         logger.warning("%s daily limit hit — skipping for rest of session", name)
@@ -185,6 +211,14 @@ class LLMFailover:
                         continue
                 logger.warning("%s failed: %s", name, e)
                 return None
+            if result is None or not str(result).strip():
+                logger.warning("%s returned an empty answer — trying the next provider", name)
+                return None
+            if accept is not None and not accept(result):
+                logger.warning("%s's answer was rejected by accept() — trying the next provider", name)
+                return None
+            self._record_call(name)
+            return result
 
         return None
 
@@ -196,12 +230,12 @@ class LLMFailover:
 
     @property
     def exhausted(self):
-        """Set of provider names that hit daily limits this session."""
+        """Set of provider names that hit a daily limit or a payment failure (402) this session."""
         return frozenset(self._exhausted)
 
     @property
     def call_counts(self):
-        """Dict of provider names to number of successful calls this session."""
+        """Dict of provider names to number of successful (usable) calls this session."""
         return dict(self._call_counts)
 
     @property
